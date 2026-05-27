@@ -5,6 +5,10 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+defaults:
+  run:
+    working-directory: mandir-app
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -42,11 +46,11 @@ jobs:
       - name: Build Debug APK
         run: |
           cd android
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: mandir-receipts-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: mandir-app/android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
