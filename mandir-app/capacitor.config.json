@@ -1,0 +1,16 @@
+{
+  "appId": "com.mandir.receiptmanager",
+  "appName": "Mandir Receipts",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#0D0D0F",
+      "androidSplashResourceName": "splash",
+      "showSpinner": false
+    }
+  }
+}
