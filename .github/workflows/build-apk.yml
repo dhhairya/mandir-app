@@ -5,10 +5,6 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
-defaults:
-  run:
-    working-directory: mandir-app
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,24 +25,22 @@ jobs:
           distribution: 'temurin'
 
       - name: Install dependencies
-        run: npm install
+        run: cd mandir-app && npm install
 
       - name: Add Android platform
-        run: npx cap add android || true
+        run: cd mandir-app && npx cap add android || true
 
       - name: Sync Capacitor
-        run: npx cap sync android
+        run: cd mandir-app && npx cap sync android
 
       - name: Make gradlew executable
-        run: chmod +x android/gradlew
+        run: chmod +x mandir-app/android/gradlew
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Build Debug APK
-        run: |
-          cd android
-          ./gradlew assembleDebug --no-daemon
+        run: cd mandir-app/android && ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
