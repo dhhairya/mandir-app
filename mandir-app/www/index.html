@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0D0D0F">
+  <title>Mandir Receipt Manager</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <style>
+    .layout { display:flex; flex-direction:column; min-height:100vh; }
+    .sidebar { display:none !important; }
+    .main { flex:1; padding:16px 14px; padding-bottom:80px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+    .bottom-nav { position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1px solid var(--border); display:flex; z-index:1000; padding-bottom:env(safe-area-inset-bottom); }
+    .bn-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:10px 0 8px; gap:3px; cursor:pointer; color:var(--text3); font-size:10px; font-weight:500; transition:color 0.15s; -webkit-tap-highlight-color:transparent; }
+    .bn-item i { font-size:22px; }
+    .bn-item.active { color:var(--gold-light); }
+    .bn-item.active i { color:var(--gold); }
+    .page-title { font-size:20px; }
+    .stats { grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+    .form-grid, .form-grid.two-col { grid-template-columns:1fr !important; }
+    .type-grid { grid-template-columns:1fr 1fr; gap:10px; }
+    .section-card { padding:14px; }
+    body { padding-top:env(safe-area-inset-top); }
+    .filter-row { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .qf-pills { flex-wrap:nowrap; min-width:max-content; }
+    .print-hint { display:none; }
+    .table-wrap { overflow-x:auto; }
+    .btn { min-height:44px; }
+    input, select, textarea { font-size:16px !important; }
+    .api-cfg { background:var(--surface2); border:1px solid var(--border2); border-radius:var(--radius); padding:14px; margin-bottom:14px; }
+    .api-cfg-title { font-size:13px; font-weight:600; color:var(--gold-light); margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+    .api-cfg-hint { font-size:11px; color:var(--text2); margin-bottom:8px; line-height:1.5; }
+    .url-row { display:flex; gap:8px; }
+    .url-row input { flex:1; }
+  </style>
+</head>
+<body>
+
+  <div class="toast" id="toast"><span class="t-dot"></span><span id="toastMsg">Saved</span></div>
+
+  <div class="layout">
+    <main class="main">
+
+      <!-- Dashboard -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <div class="page-title" id="dTitle">Overview</div>
+            <div class="page-sub" id="dSub">All donations at a glance</div>
+          </div>
+          <button class="btn btn-gold" onclick="goTo('new-receipt','ni-new-receipt')">
+            <i class="ti ti-plus"></i><span id="btnNewReceipt">New Receipt</span>
+          </button>
+        </div>
+        <div class="stats">
+          <div class="stat-card gold"><div class="stat-icon">🧾</div><div class="stat-val" id="st-total">0</div><div class="stat-lbl" id="stl-total">Total Receipts</div></div>
+          <div class="stat-card green"><div class="stat-icon">₹</div><div class="stat-val" id="st-amount">₹0</div><div class="stat-lbl" id="stl-amount">Total Collected</div></div>
+          <div class="stat-card blue"><div class="stat-icon">🙏</div><div class="stat-val" id="st-donations">0</div><div class="stat-lbl" id="stl-donations">Donations</div></div>
+          <div class="stat-card red"><div class="stat-icon">🪷</div><div class="stat-val" id="st-memberships">0</div><div class="stat-lbl" id="stl-memberships">Memberships</div></div>
+        </div>
+        <div class="section-card">
+          <div class="section-head">
+            <div class="section-head-title" id="recentTitle">Recent Receipts</div>
+            <button class="btn btn-ghost" onclick="goTo('history','ni-history')" style="padding:6px 14px;font-size:12px" id="viewAllBtn">View All →</button>
+          </div>
+          <div class="table-wrap" id="dashTable"></div>
+        </div>
+      </div>
+
+      <!-- New Receipt -->
+      <div class="page" id="page-new-receipt">
+        <div class="page-header">
+          <div>
+            <div class="page-title" id="nrTitle">New Receipt</div>
+            <div class="page-sub" id="nrSub">Upload template or fill manually</div>
+          </div>
+        </div>
+        <div class="steps" id="stepsRow">
+          <div class="step-item"><div class="step-num active" id="sn1">1</div><div class="step-label active" id="sl1">Template</div></div>
+          <div class="step-line" id="sl-line1"></div>
+          <div class="step-item"><div class="step-num" id="sn2">2</div><div class="step-label" id="sl2">Details</div></div>
+          <div class="step-line" id="sl-line2"></div>
+          <div class="step-item"><div class="step-num" id="sn3">3</div><div class="step-label" id="sl3">Receipt</div></div>
+        </div>
+        <div id="step1">
+          <div class="api-cfg">
+            <div class="api-cfg-title"><i class="ti ti-server"></i> Backend Server</div>
+            <div class="api-cfg-hint">For AI scanning: enter the server IP on your Wi-Fi network. Skip if using default fields.</div>
+            <div class="url-row">
+              <input type="url" id="backendUrl" placeholder="http://192.168.1.x:3000">
+              <button class="btn btn-ghost" onclick="saveBackendUrl()" style="font-size:12px;padding:8px 12px;white-space:nowrap">Save</button>
+            </div>
+          </div>
+          <div class="form-grid two-col">
+            <div class="form-card">
+              <div class="form-section-title" id="uploadTitle">Upload Template</div>
+              <div class="upload-zone" onclick="document.getElementById('fileInput').click()" id="uploadZone">
+                <i class="ti ti-photo-up" style="font-size:32px;color:var(--text3)"></i>
+                <div class="upload-title" id="uzTitle">Tap to choose receipt photo</div>
+                <div class="upload-sub" id="uzSub">JPG or PNG • Physical receipt template</div>
+                <input type="file" id="fileInput" accept="image/*" capture="environment" onchange="handleFile(event)">
+              </div>
+              <img id="imgPreview" class="upload-preview">
+              <div class="ai-scanning" id="aiScanning"><div class="ai-dot"></div><span id="aiScanText">AI is reading your template...</span></div>
+              <div id="detectedChips" class="detected-chips"></div>
+              <button class="btn btn-gold full-width mt-14" id="scanBtn" disabled onclick="scanTemplate()">
+                <i class="ti ti-sparkles"></i><span id="scanBtnText">Scan with AI</span>
+              </button>
+            </div>
+            <div class="form-card center-content">
+              <div style="font-size:40px">🛕</div>
+              <div class="skip-title" id="skipTitle">Or skip template</div>
+              <div class="skip-desc" id="skipDesc">Use default fields to generate a receipt directly.</div>
+              <button class="btn btn-ghost" onclick="useDefaultFields()" id="skipBtn">Use Default Fields →</button>
+            </div>
+          </div>
+        </div>
+        <div id="step2" style="display:none">
+          <div class="form-grid">
+            <div>
+              <div class="form-card mb-16">
+                <div class="form-section-title" id="donorInfoTitle">Donor Information</div>
+                <div class="fields-grid" id="fieldForm"></div>
+              </div>
+            </div>
+            <div>
+              <div class="form-card mb-16">
+                <div class="form-section-title" id="donTypeTitle">Donation Type</div>
+                <div class="type-grid">
+                  <div class="type-card active" onclick="setType('donation',this)" id="typeCardDonation">
+                    <div class="type-icon">🙏</div>
+                    <div class="type-name" id="typeDonName">Donation</div>
+                    <div class="type-desc" id="typeDonDesc">General donation (दान)</div>
+                  </div>
+                  <div class="type-card" onclick="setType('membership',this)" id="typeCardMembership">
+                    <div class="type-icon">🪷</div>
+                    <div class="type-name" id="typeMemName">Membership</div>
+                    <div class="type-desc" id="typeMemDesc">Annual membership (सदस्यता)</div>
+                  </div>
+                </div>
+              </div>
+              <button class="btn btn-gold full-width py-12" onclick="generateReceipt()" id="genBtn">
+                <i class="ti ti-file-check"></i><span id="genBtnText">Generate Receipt</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div id="step3" style="display:none">
+          <div class="form-grid">
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div class="success-banner">
+                <div style="font-size:24px">✅</div>
+                <div>
+                  <div class="success-title" id="savedSuccessTitle">Receipt saved successfully</div>
+                  <div class="success-sub" id="savedSuccessSub">Added to your history</div>
+                </div>
+              </div>
+              <div class="form-card">
+                <div class="receipt-preview" id="receiptPreviewContent"></div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div class="form-card">
+                <div class="form-section-title" id="actionsTitle">Actions</div>
+                <div style="display:flex;flex-direction:column;gap:10px">
+                  <button class="btn btn-gold full-width justify-center" onclick="printReceipt()" id="printBtn">
+                    <i class="ti ti-printer"></i><span id="printBtnText">Print Receipt</span>
+                  </button>
+                  <button class="btn btn-ghost full-width justify-center" onclick="shareReceipt()" id="pdfBtn">
+                    <i class="ti ti-share"></i><span id="pdfBtnText">Share Receipt</span>
+                  </button>
+                  <hr class="divider">
+                  <button class="btn btn-ghost full-width justify-center" onclick="resetForm()" id="newReceiptBtn2">
+                    <i class="ti ti-plus"></i><span id="newReceiptBtn2Text">New Receipt</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div class="page" id="page-history">
+        <div class="page-header">
+          <div>
+            <div class="page-title" id="hTitle">Receipt History</div>
+            <div class="page-sub" id="hSub">Filter and export receipts</div>
+          </div>
+          <button class="btn btn-gold" onclick="downloadCSV()">
+            <i class="ti ti-table-export"></i><span id="exportBtn">Export</span>
+          </button>
+        </div>
+        <div class="section-card">
+          <div class="filter-row" style="margin-bottom:10px">
+            <div class="qf-pills" id="qfPills">
+              <button class="qf active" onclick="setQuick('all',this)">All time</button>
+              <button class="qf" onclick="setQuick('today',this)">Today</button>
+              <button class="qf" onclick="setQuick('week',this)">Last 7 days</button>
+              <button class="qf" onclick="setQuick('month',this)">This month</button>
+              <button class="qf" onclick="setQuick('lastmonth',this)">Last month</button>
+            </div>
+          </div>
+          <div class="filter-row" style="margin-bottom:12px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <div><label class="filter-label" id="fromLbl">From</label><input type="date" class="filter-input" id="filterFrom" onchange="renderHistory()"></div>
+              <div><label class="filter-label" id="toLbl">To</label><input type="date" class="filter-input" id="filterTo" onchange="renderHistory()"></div>
+              <div><label class="filter-label" id="typeLbl">Type</label>
+                <select class="filter-select" id="filterType" onchange="renderHistory()">
+                  <option value="all">All types</option>
+                  <option value="donation">Donation</option>
+                  <option value="membership">Membership</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="table-wrap" id="historyTable"></div>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="page" id="page-settings">
+        <div class="page-header"><div><div class="page-title">Settings</div><div class="page-sub">App configuration</div></div></div>
+        <div class="form-card mb-16">
+          <div class="form-section-title">Language / भाषा</div>
+          <div class="lang-pill" style="max-width:180px;margin-top:10px">
+            <div class="lang-opt active" id="langEn" onclick="setLang('en',this)">EN</div>
+            <div class="lang-opt" id="langHi" onclick="setLang('hi',this)">हि</div>
+          </div>
+        </div>
+        <div class="form-card mb-16">
+          <div class="form-section-title">Backend Server URL</div>
+          <div style="color:var(--text2);font-size:12px;margin:8px 0;line-height:1.5">
+            Run the backend on a PC on the same Wi-Fi, then paste its IP here.<br>
+            Example: <code style="color:var(--gold)">http://192.168.1.10:3000</code>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input type="url" id="backendUrl2" placeholder="http://192.168.x.x:3000" style="flex:1">
+            <button class="btn btn-gold" onclick="saveBackendUrl2()" style="font-size:12px;padding:8px 14px;flex-shrink:0">Save</button>
+          </div>
+        </div>
+        <div class="form-card">
+          <div class="form-section-title">About</div>
+          <div style="color:var(--text2);font-size:12px;margin-top:10px;line-height:1.8">
+            <div>🛕 Mandir Receipt Manager</div>
+            <div>Version 1.0.0</div>
+            <div style="margin-top:8px;color:var(--text3)">Manage donation receipts for your temple trust. Data stored locally on this device.</div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav">
+      <div class="bn-item active" id="ni-dashboard" onclick="goTo('dashboard','ni-dashboard')">
+        <i class="ti ti-layout-dashboard"></i><span>Home</span>
+      </div>
+      <div class="bn-item" id="ni-new-receipt" onclick="goTo('new-receipt','ni-new-receipt')">
+        <i class="ti ti-file-plus"></i><span>New</span>
+      </div>
+      <div class="bn-item" id="ni-history" onclick="goTo('history','ni-history')">
+        <i class="ti ti-clock-hour-4"></i><span>History</span>
+      </div>
+      <div class="bn-item" id="ni-settings" onclick="goTo('settings','ni-settings')">
+        <i class="ti ti-settings"></i><span>Settings</span>
+      </div>
+    </nav>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Mobile overrides
+    const _orig_goTo = goTo;
+    goTo = function(page, navId) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.bn-item').forEach(n => n.classList.remove('active'));
+      const pg = document.getElementById('page-' + page);
+      if (pg) pg.classList.add('active');
+      const ni = typeof navId === 'string' ? document.getElementById(navId) : navId;
+      if (ni) ni.classList.add('active');
+      if (page === 'dashboard') renderDash();
+      if (page === 'history') renderHistory();
+      document.querySelector('.main').scrollTop = 0;
+    };
+
+    function getBackendUrl() { return localStorage.getItem('mandir-backend-url') || ''; }
+    function saveBackendUrl() {
+      const v = document.getElementById('backendUrl').value.trim().replace(/\/$/, '');
+      if (v) { localStorage.setItem('mandir-backend-url', v); document.getElementById('backendUrl2').value = v; showToast('Backend URL saved'); }
+    }
+    function saveBackendUrl2() {
+      const v = document.getElementById('backendUrl2').value.trim().replace(/\/$/, '');
+      if (v) { localStorage.setItem('mandir-backend-url', v); document.getElementById('backendUrl').value = v; showToast('Backend URL saved'); }
+    }
+
+    // Override scanTemplate to use dynamic backend URL
+    scanTemplate = async function() {
+      const backendUrl = getBackendUrl();
+      if (!backendUrl) { showToast('Set backend URL in Settings first'); return; }
+      const fileInput = document.getElementById('fileInput');
+      if (!fileInput.files[0]) return;
+      document.getElementById('scanBtn').disabled = true;
+      document.getElementById('aiScanning').style.display = 'flex';
+      try {
+        const formData = new FormData();
+        formData.append('template', fileInput.files[0]);
+        const res = await fetch(backendUrl + '/api/scan-template', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        detectedFields = data.fields;
+        document.getElementById('aiScanning').style.display = 'none';
+        document.getElementById('detectedChips').innerHTML = detectedFields.map(f =>
+          `<div class="dchip">${lang === 'hi' ? f.label_hi : f.label_en}</div>`).join('');
+        setTimeout(() => goStep(2), 800);
+      } catch(e) { showToast('AI scan failed — using default fields'); useDefaultFields(); }
+    };
+
+    function shareReceipt() {
+      if (navigator.share) {
+        navigator.share({ title: 'Mandir Receipt', text: document.getElementById('receiptPreviewContent').innerText });
+      } else { printReceipt(); }
+    }
+
+    const _orig_setLang = setLang;
+    setLang = function(l, el) {
+      _orig_setLang(l, el);
+      document.getElementById('langEn').classList.toggle('active', l === 'en');
+      document.getElementById('langHi').classList.toggle('active', l === 'hi');
+    };
+
+    // Restore saved URL
+    (function() {
+      const s = getBackendUrl();
+      if (s) { document.getElementById('backendUrl').value = s; document.getElementById('backendUrl2').value = s; }
+    })();
+  </script>
+</body>
+</html>
